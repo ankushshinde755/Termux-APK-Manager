@@ -1,0 +1,233 @@
+#!/data/data/com.termux/files/usr/bin/bash
+
+# Termux APK Manager
+# Supports APK/APKS/XAPK/APKM packages.
+# Normal installation is attempted first.
+# ART/dexopt profile fallback is used only when the relevant
+# installation error is detected.
+
+APK_DIR="/storage/emulated/0/APK"
+TMP="$HOME/.apk_tmp"
+
+cleanup() {
+    rm -rf "$TMP"
+}
+trap cleanup EXIT
+
+echo "📱 Termux APK Manager"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if ! adb devices 2>/dev/null | grep -qE 'device$'; then
+    echo "❌ ADB device not connected."
+    echo
+    echo "Connect Wireless ADB first:"
+    echo "adb connect IP:PORT"
+    exit 1
+fi
+
+mkdir -p "$APK_DIR"
+
+if [ -z "$1" ]; then
+
+    mapfile -d '' FILES < <(
+        find "$APK_DIR" -maxdepth 1 -type f \
+        \( -iname "*.apk" -o -iname "*.apks" -o -iname "*.xapk" -o -iname "*.apkm" \) \
+        -print0
+    )
+
+    if [ "${#FILES[@]}" -eq 0 ]; then
+        echo "📂 No APK packages found."
+        echo
+        echo "Put APK/APKS/XAPK/APKM files here:"
+        echo "$APK_DIR"
+        exit 1
+    fi
+
+    echo
+    echo "📦 Available packages:"
+    echo
+
+    for i in "${!FILES[@]}"; do
+        echo "  $((i+1))) $(basename "${FILES[$i]}")"
+    done
+
+    echo
+    read -rp "👉 Select package: " CHOICE
+
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || \
+       [ "$CHOICE" -lt 1 ] || \
+       [ "$CHOICE" -gt "${#FILES[@]}" ]; then
+        echo "❌ Invalid selection."
+        exit 1
+    fi
+
+    FILE="${FILES[$((CHOICE-1))]}"
+
+else
+
+    FILE="$1"
+
+    if [ ! -f "$FILE" ]; then
+        FILE="$APK_DIR/$1"
+    fi
+fi
+
+if [ ! -f "$FILE" ]; then
+    echo "❌ File not found: $1"
+    exit 1
+fi
+
+echo
+echo "📦 Selected: $(basename "$FILE")"
+echo
+
+install_apk() {
+    local APK="$1"
+    local OUTPUT
+    local RESULT
+
+    echo "📲 Installing APK..."
+
+    OUTPUT=$(adb install -r "$APK" 2>&1)
+    RESULT=$?
+
+    printf '%s\n' "$OUTPUT"
+
+    if [ "$RESULT" -eq 0 ]; then
+        return 0
+    fi
+
+    if echo "$OUTPUT" | grep -qiE \
+        'profile does not match|checksums in the profile|external profiles|error occurred during dexopt'; then
+
+        echo
+        echo "⚠️ ART profile mismatch detected."
+        echo "🔄 Retrying with profile check bypass..."
+
+        OUTPUT=$(adb install -r --ignore-dexopt-profile "$APK" 2>&1)
+        RESULT=$?
+
+        printf '%s\n' "$OUTPUT"
+
+        if [ "$RESULT" -eq 0 ]; then
+            echo
+            echo "✅ Recovery installation successful!"
+            return 0
+        fi
+
+        echo
+        echo "❌ Recovery installation failed."
+        return "$RESULT"
+    fi
+
+    return "$RESULT"
+}
+
+install_splits() {
+    local OUTPUT
+    local RESULT
+
+    echo "🧩 Installing split APK set..."
+
+    OUTPUT=$(adb install-multiple -r "$@" 2>&1)
+    RESULT=$?
+
+    printf '%s\n' "$OUTPUT"
+
+    if [ "$RESULT" -eq 0 ]; then
+        return 0
+    fi
+
+    if echo "$OUTPUT" | grep -qiE \
+        'profile does not match|checksums in the profile|external profiles|error occurred during dexopt'; then
+
+        echo
+        echo "⚠️ ART profile mismatch detected."
+        echo "🔄 Retrying with profile check bypass..."
+
+        OUTPUT=$(adb install-multiple -r --ignore-dexopt-profile "$@" 2>&1)
+        RESULT=$?
+
+        printf '%s\n' "$OUTPUT"
+
+        if [ "$RESULT" -eq 0 ]; then
+            echo
+            echo "✅ Recovery installation successful!"
+            return 0
+        fi
+
+        echo
+        echo "❌ Recovery installation failed."
+        return "$RESULT"
+    fi
+
+    return "$RESULT"
+}
+
+EXT="${FILE##*.}"
+EXT="$(echo "$EXT" | tr '[:upper:]' '[:lower:]')"
+
+RESULT=1
+
+if [ "$EXT" = "apk" ]; then
+
+    install_apk "$FILE"
+    RESULT=$?
+
+elif [ "$EXT" = "apks" ] || \
+     [ "$EXT" = "xapk" ] || \
+     [ "$EXT" = "apkm" ]; then
+
+    rm -rf "$TMP"
+    mkdir -p "$TMP"
+
+    echo "🧩 Extracting $EXT package..."
+
+    if ! unzip -q "$FILE" -d "$TMP"; then
+        echo "❌ Could not extract package."
+        exit 1
+    fi
+
+    mapfile -d '' APKFILES < <(
+        find "$TMP" -type f -iname "*.apk" -print0
+    )
+
+    if [ "${#APKFILES[@]}" -eq 0 ]; then
+        echo "❌ No APK files found inside package."
+        exit 1
+    fi
+
+    echo "📦 Found ${#APKFILES[@]} APK component(s)."
+
+    if [ "${#APKFILES[@]}" -eq 1 ]; then
+
+        install_apk "${APKFILES[0]}"
+        RESULT=$?
+
+    else
+
+        install_splits "${APKFILES[@]}"
+        RESULT=$?
+
+    fi
+
+else
+
+    echo "❌ Unsupported file type: .$EXT"
+    exit 1
+
+fi
+
+echo
+
+if [ "$RESULT" -eq 0 ]; then
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ Installation successful!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+else
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "❌ Installation failed."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+fi
+
+exit "$RESULT"
