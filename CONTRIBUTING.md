@@ -1,35 +1,36 @@
-# 🤝 Contributing
+# Contributing
 
-Thanks for your interest in contributing to Termux APK Manager! ❤️
+Thanks for helping improve Termux APK Manager! 🛠️
 
-## 🐛 Reporting a bug
+## Before opening an issue
 
-Before opening an issue:
+- Confirm the problem is reproducible.
+- Include Android version and Termux version when relevant.
+- Include ADB version when relevant.
+- Remove private IP addresses, pairing codes, tokens, usernames, and other secrets.
+- Do not upload proprietary APKs or company files.
 
-1. 🔍 Check existing issues.
-2. 📱 Mention your Android version.
-3. 📲 Mention your Termux version.
-4. 🔧 Mention the ADB version if relevant.
-5. 📋 Include the relevant error message.
-6. 🚫 Never include private IP addresses, pairing codes, personal information, or private APK files.
+## Pull requests
 
-## 💡 Feature requests
+1. Fork the repository.
+2. Create a focused branch.
+3. Make the smallest practical change.
+4. Test the script with `bash -n apk`.
+5. Test affected functionality on a real Android/Termux environment when possible.
+6. Update documentation/changelog when behavior changes.
+7. Open a pull request against `main`.
 
-Explain:
+## Shell-script requirements
 
-- What you want to improve
-- Why it would be useful
-- How you expect it to work
+- Keep the `#!/data/data/com.termux/files/usr/bin/bash` shebang.
+- Quote paths and variables where practical.
+- Preserve filenames containing spaces.
+- Avoid destructive operations without clear confirmation or user scoping.
+- Do not add root exploits or security-bypass logic.
+- Do not add telemetry or network calls without explicit project requirements.
 
-## 🔧 Pull requests
+## Package-management changes
 
-Please keep changes focused and easy to review.
+Prefer Android's documented/normal package-manager interfaces. User-scoped removal should remain `--user 0` unless a future change explicitly documents why another scope is required.
 
-Before submitting:
-
-- Test the script on your device.
-- Check that normal APK installation still works.
-- Check split APK installation if your change affects package handling.
-- Make sure no personal paths, IP addresses, credentials, or private information are included.
-
-Thank you for helping improve the project! 🚀
+OEM-protected packages should be reported cleanly rather than bypassed.

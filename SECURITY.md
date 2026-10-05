@@ -1,26 +1,46 @@
-# 🔒 Security Policy
+# Security Policy
 
-## Reporting a security issue
+## Supported versions
 
-If you discover a security problem in this project, please report it privately rather than publishing sensitive details in a public issue.
+| Version | Supported |
+|---|---|
+| 1.1.x | ✅ |
+| 1.0.x | ⚠️ Best effort |
+| < 1.0 | ❌ |
 
-Do not include:
+## Reporting a vulnerability
 
-- 🔑 Passwords or tokens
-- 🔐 Private keys
-- 📡 Private ADB pairing information
-- 🌐 Private network details
-- 👤 Personal information
+Please do not publish credentials, exploit details, or sensitive information in a public issue.
 
-## Wireless ADB safety
+If the repository owner has enabled GitHub's private vulnerability reporting, use that channel. Otherwise, contact the repository owner privately through GitHub before public disclosure.
 
-Wireless Debugging provides ADB access to the Android device.
+Include:
 
-Users should:
+- affected version
+- affected command/function
+- reproduction steps
+- expected behavior
+- actual behavior
+- security impact
+- suggested mitigation, if known
 
-- Use trusted networks.
-- Never accept unknown pairing requests.
-- Keep pairing codes private.
-- Disable Wireless Debugging when it is not needed.
+Please redact:
 
-This project does not intentionally collect or transmit user data.
+- passwords
+- API tokens
+- pairing codes
+- private IP addresses
+- personal backup files
+- company information
+
+## Scope
+
+Security reports are especially relevant to:
+
+- unintended command execution
+- unsafe argument handling
+- accidental data destruction
+- credential/secret exposure
+- unsafe package-management behavior
+
+The project intentionally does not attempt to bypass Android/OEM security boundaries.

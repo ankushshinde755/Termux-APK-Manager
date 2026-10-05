@@ -1,261 +1,156 @@
 # 📱 Termux APK Manager
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-Wireless%20ADB-green.svg)](#-enable-wireless-debugging)
-[![Termux](https://img.shields.io/badge/Termux-supported-blue.svg)](#-termux-setup)
-[![Version](https://img.shields.io/badge/version-1.0.0-informational.svg)](CHANGELOG.md)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Android](https://img.shields.io/badge/Android-ADB-3DDC84.svg)
+![Termux](https://img.shields.io/badge/Termux-supported-1f1f1f.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 
-A small, beginner-friendly Termux utility for installing Android application packages through ADB Wireless Debugging.
+A practical **Termux + Android Debug Bridge (ADB)** package manager for Android devices.
 
-It is designed as a simple **fallback installation path** when normal package installation is unavailable or when a tested ART/dexopt profile mismatch occurs.
+It started as a small APK installer and evolved into a reusable command-line toolkit for installing patched APKs, handling split packages, managing user-installed/system packages, and recovering from a specific Android ART/dexopt profile mismatch that can affect patched APKs.
 
-**No root. No Shizuku. No changes to Morphe.** 🔐
+> **No root. No Shizuku dependency. No permanent privileged service.**
+>
+> ADB/Wireless Debugging is used only when you need package-management operations.
 
-A lightweight APK installer for Termux using Android Debug Bridge (ADB), with support for normal and split APK packages and an automatic ART/dexopt profile fallback.
-
-> 🔧 **Morphe-friendly:** This project is an installation fallback. It does not modify Morphe or the patched APK.
+---
 
 ## ✨ Features
 
-- 📦 `.apk` support
-- 🧩 `.apks` support
-- 📦 `.xapk` support
-- 📦 `.apkm` support
-- 🔀 Automatic split APK installation
-- 📡 Wireless ADB support
-- 🔄 Automatic ART/dexopt profile fallback
-- 🧹 Automatic temporary-file cleanup
-- 📁 Dedicated APK directory
-- 🔤 Filenames with spaces are supported
-- 🔒 No root required
-- 🚫 No Shizuku required
-- 🛡️ No automatic uninstall or data wipe
-- ❤️ Designed as a simple fallback installation method
+### 📦 Package installation
 
----
-
-## 🧭 How it works
-
-The normal workflow is:
-
-**Morphe → Patch → Export APK → Put it in the APK folder → Connect ADB → Run `apk` → Select package → Install**
-
-The installer first attempts the normal Android ADB installation.
-
-If a specific ART/dexopt profile error is detected, it automatically retries using Android's `--ignore-dexopt-profile` installation option.
-
-```text
-📦 Package
-   ↓
-📲 Normal ADB installation
-   ↓
-   ├── ✅ Success → Finished
-   │
-   └── ❌ ART/profile mismatch
-             ↓
-      🔄 Retry with
-      --ignore-dexopt-profile
-             ↓
-          ✅ Done
-```
-
----
-
-# 🔐 Privacy & sensitive information
-
-This repository intentionally contains **no personal device information**.
-
-Do not publish private IP addresses, ADB ports, Wireless Debugging pairing codes, personal information, passwords, tokens, credentials, private APKs, or device/account identifiers.
-
-Example IP addresses in this README are placeholders only.
-
-The script does not intentionally collect, upload, or transmit user data.
-
----
-
-# 📋 Requirements
-
-## 📱 Android
-
-You need:
-
-- Android device with Developer Options
-- Wireless Debugging support
-- Termux
-- ADB tools installed inside Termux
-
-Root is **not** required.
-
-Shizuku is **not** required.
-
----
-
-# 📥 Termux setup
-
-Install a current Termux build from a trusted source such as the official Termux GitHub releases.
-
-After opening Termux, update packages:
-
-```bash
-pkg update
-```
-
-Install Android Debug Bridge:
-
-```bash
-pkg install android-tools
-```
-
-Install unzip support:
-
-```bash
-pkg install unzip
-```
-
-Verify ADB:
-
-```bash
-adb version
-```
-
-You should see the installed Android Debug Bridge version.
-
----
-
-# 📂 Create the APK folder
-
-This project intentionally uses one dedicated folder:
+- `.apk`
+- `.apks`
+- `.xapk`
+- `.apkm`
+- Split APK installation with `adb install-multiple`
+- Dedicated package directory:
 
 ```text
 /storage/emulated/0/APK
 ```
 
-Create it:
+The interactive installer searches **only this directory**.
+
+### 🛠️ Package management
+
+The `apk` command can also:
+
+- 📋 List installed packages
+- 🔍 Search package names
+- 📄 Inspect package information
+- 🚫 Disable an app for user 0
+- ✅ Re-enable an app
+- 🗑️ Uninstall a package for user 0
+- ♻️ Restore a preinstalled package with `install-existing`
+
+### 🧬 ART / dexopt profile recovery
+
+Some patched APKs can trigger an Android ART profile/checksum mismatch during installation. When the normal installation fails with the known profile/dexopt indicators, the script automatically retries with:
 
 ```bash
-mkdir -p /storage/emulated/0/APK
+adb install -r --ignore-dexopt-profile APP.apk
 ```
 
-Put your `.apk`, `.apks`, `.xapk`, or `.apkm` files there.
+The script **does not** automatically:
 
-The installer searches **only this directory** when you run `apk` without an argument.
+- uninstall the app
+- wipe application data
+- disable ProfileInstaller
+- delete ART profiles
+- modify the patched APK
+- require root
+- require Shizuku
+
+The normal installation is always attempted first.
+
+### 🔒 OEM-protected packages
+
+Some Android/OEM packages cannot be disabled or modified by the ADB shell user. For example, some Vivo/iQOO privileged packages can return a `SecurityException` stating that root permission is required.
+
+The manager detects this common response and reports:
+
+```text
+🔒 OEM Protected Package
+❌ Nothing was changed.
+```
+
+It does **not** attempt to bypass OEM security restrictions.
 
 ---
 
-# 🔐 Termux storage permission
+# 🚀 Quick Start
 
-Allow Termux access to shared storage.
+## 1. Install Termux
 
-You can also initialize Termux shared-storage access with:
+Use the official Termux distribution you normally use. This project is designed around the GitHub/F-Droid style Termux environment rather than a Play Store build.
+
+For the GitHub build, see the official Termux project:
+
+https://github.com/termux/termux-app
+
+## 2. Update Termux
+
+```bash
+pkg update && pkg upgrade
+```
+
+## 3. Install required packages
+
+```bash
+pkg install android-tools unzip
+```
+
+The script uses Bash, ADB and `unzip`.
+
+## 4. Give Termux storage access
 
 ```bash
 termux-setup-storage
 ```
 
-Android will show a permission request. Allow it.
+Allow the Android permission prompt.
 
-📌 The exact permission names can vary between Android versions and manufacturers.
-
----
-
-# 📡 Enable Wireless Debugging
-
-Wireless ADB is what allows Termux to communicate with Android's package manager.
-
-## 1️⃣ Enable Developer Options
-
-On most Android devices:
-
-**Settings → About phone → Software information → Build number**
-
-Tap **Build number** repeatedly until Developer Options are enabled.
-
-The exact location can vary by manufacturer.
-
-## 2️⃣ Enable Wireless Debugging
-
-Open:
-
-**Settings → Developer options → Wireless debugging**
-
-Turn **Wireless debugging** ON.
-
----
-
-# 🔗 Pair Termux with Wireless Debugging
-
-If this is the first time you're connecting:
-
-Open:
-
-**Wireless debugging → Pair device with pairing code**
-
-Android will display an IP address, port, and pairing code.
-
-In Termux:
+## 5. Create the APK directory
 
 ```bash
-adb pair IP:PAIRING_PORT
+mkdir -p /storage/emulated/0/APK
 ```
 
-For example:
-
-```bash
-adb pair 192.168.x.x:xxxxx
-```
-
-Enter the pairing code shown by Android.
-
-✅ Pairing only needs to be performed when Android requires it.
+Put your APK packages in that folder.
 
 ---
 
-# 🔌 Connect ADB
+# 🔌 Wireless ADB Setup
 
-After pairing, use the connection address shown on the main Wireless Debugging screen:
+Enable **Developer Options → Wireless Debugging** on the Android device.
+
+Pairing and connecting are separate operations.
+
+For a normal connection, use the address and port shown by Android:
 
 ```bash
 adb connect IP:PORT
 ```
 
-Example:
+Example format only:
 
-```bash
+```text
 adb connect 192.168.x.x:xxxxx
 ```
 
-Then verify:
+Never commit your real local IP address, pairing code, or other private connection details to a public repository.
+
+Check the connection:
 
 ```bash
 adb devices
 ```
 
-You should see something similar to:
+You should see a device ending in:
 
 ```text
-192.168.x.x:xxxxx    device
-```
-
-🎉 ADB is connected.
-
-> ⚠️ Do not copy the example IP/port above. Use the current address shown by your own phone.
-
----
-
-# 📥 Installing the script
-
-After downloading or cloning this repository, copy the `apk` script into Termux:
-
-```bash
-mkdir -p ~/bin
-cp apk ~/bin/apk
-chmod +x ~/bin/apk
-```
-
-Verify it:
-
-```bash
-command -v apk
+device
 ```
 
 Then run:
@@ -266,451 +161,424 @@ apk
 
 ---
 
-# 📲 Install packages
+# 📥 Installing the `apk` command
 
-Once ADB is connected, simply run:
-
-```bash
-apk
-```
-
-The script will search:
-
-```text
-/storage/emulated/0/APK
-```
-
-and display the available packages.
-
-Example:
-
-```text
-📦 Available packages:
-
-1) OpenLoader.apks
-2) ForceStopHelper.apk
-3) App.apk
-4) Transfer.apk
-
-👉 Select package: 4
-
-📦 Selected: Transfer.apk
-
-📲 Installing APK...
-Performing Streamed Install
-Success
-
-━━━━━━━━━━━━━━━━━━━━━━━━
-✅ Installation successful!
-━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
----
-
-# 📦 Supported package types
-
-## `.apk`
-
-A normal APK is installed with:
+Copy the repository's `apk` script into your Termux executable directory:
 
 ```bash
-adb install -r
+mkdir -p ~/bin
+cp apk ~/bin/apk
+chmod +x ~/bin/apk
 ```
 
-The `-r` option allows an existing installation to be updated while retaining its application data.
-
-## `.apks`, `.xapk`, `.apkm`
-
-These packages can contain multiple APK components.
-
-The script:
-
-1. 📦 Extracts the package into a temporary directory
-2. 🔍 Finds the APK components
-3. 🧩 Installs the components
-4. 🧹 Removes the temporary files
-
-For multiple APK components, it uses:
+Make sure `~/bin` is in your PATH:
 
 ```bash
-adb install-multiple -r
-```
-
-Users do not need to manually extract the package.
-
----
-
-# ⚠️ ART / Dexopt profile mismatch
-
-One of the reasons this project was created was an installation problem encountered with some patched APKs.
-
-A normal installation can sometimes produce errors such as:
-
-```text
-Error occurred during dexopt when processing external profiles
-
-The profile does not match the APK
-
-The checksums in the profile do not match
-the checksums of the .dex files in the APK
-```
-
-At first, the APK filename may look suspicious, especially when it contains spaces.
-
-Testing with different filenames showed that the filename itself was **not the cause**.
-
-The issue was related to the Android Runtime (ART) dexopt profile.
-
----
-
-# 🔄 Automatic fallback
-
-Android's package installer provides:
-
-```bash
---ignore-dexopt-profile
-```
-
-A manual installation can therefore be retried with:
-
-```bash
-adb install -r --ignore-dexopt-profile "patched-app.apk"
-```
-
-The script automates this.
-
-### Normal path
-
-```text
-📲 adb install -r
-       ↓
-   ✅ Success
-```
-
-### Fallback path
-
-```text
-📲 adb install -r
-       ↓
-⚠️ ART/profile mismatch
-       ↓
-🔄 Automatic retry
-       ↓
-📲 --ignore-dexopt-profile
-       ↓
-✅ Success
-```
-
-The same fallback is used for split APK installation.
-
----
-
-# 🛡️ What this project does NOT do
-
-The installer does **not**:
-
-- 🚫 Automatically uninstall applications
-- 🚫 Wipe application data
-- 🚫 Modify Morphe
-- 🚫 Modify the patched APK
-- 🚫 Disable ProfileInstaller
-- 🚫 Require root
-- 🚫 Require Shizuku
-- 🚫 Delete Android profiles manually
-- 🚫 Change Android system settings
-
-It is simply an **ADB-based installation tool**.
-
----
-
-# 🔧 Morphe workflow
-
-If you use Morphe, the recommended workflow is:
-
-### 1️⃣ Patch the app
-
-Use Morphe normally.
-
-### 2️⃣ Export/save the patched package
-
-Save the resulting package to:
-
-```text
-/storage/emulated/0/APK
-```
-
-### 3️⃣ Enable Wireless Debugging
-
-Turn it on in Android Developer Options.
-
-### 4️⃣ Connect ADB
-
-```bash
-adb connect IP:PORT
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 Verify:
 
 ```bash
-adb devices
+command -v apk
 ```
 
-### 5️⃣ Run the installer
-
-```bash
-apk
-```
-
-### 6️⃣ Select your package
-
-Choose the number shown in the menu.
-
-### 7️⃣ Install 🎉
-
-The script handles normal installation and the ART profile fallback automatically.
-
-> 💡 Morphe's own installer does not need to be modified for this project.
-
----
-
-# 🧪 Tested scenarios
-
-| Scenario | Result |
-|---|---|
-| Normal `.apk` | ✅ Tested |
-| `.apks` split package | ✅ Tested |
-| Morphe-patched APK | ✅ Tested |
-| ART profile mismatch | ✅ Automatic fallback |
-| APK filename with spaces | ✅ Supported |
-| Temporary split extraction | ✅ Cleaned automatically |
-
----
-
-# 🛠️ Troubleshooting
-
-## ❌ `adb: command not found`
-
-Install Android Debug Bridge:
-
-```bash
-pkg install android-tools
-```
-
-Then:
-
-```bash
-adb version
-```
-
----
-
-## ❌ `adb devices` shows no device
-
-Check:
-
-- 📡 Wireless Debugging is enabled
-- 📱 Termux and the device are using a working network connection
-- 🔗 The correct IP and port are being used
-- 🔄 Try connecting again
-
-```bash
-adb connect IP:PORT
-```
-
-Then:
-
-```bash
-adb devices
-```
-
----
-
-## ❌ Device shows `unauthorized`
-
-Check the phone for an ADB authorization prompt and accept it.
-
-Then:
-
-```bash
-adb devices
-```
-
----
-
-## ❌ `apk` says ADB device not connected
-
-Check:
-
-```bash
-adb devices
-```
-
-If the device is not listed:
-
-```bash
-adb connect IP:PORT
-```
-
-Then:
-
-```bash
-apk
-```
-
----
-
-## ❌ ART/profile installation error
-
-The script should automatically detect the supported ART/profile error and retry.
-
-For a manual test:
-
-```bash
-adb install -r --ignore-dexopt-profile "app.apk"
-```
-
-Only use the fallback when the normal installation reports the relevant profile/dexopt problem.
-
----
-
-# 🔌 Disconnect ADB
-
-When finished:
-
-```bash
-adb disconnect
-```
-
-You can also disable Wireless Debugging when you no longer need it.
-
-📌 Disabling Developer Options/Wireless Debugging does not remove your Termux scripts or files.
-
----
-
-# 🔒 Security notes
-
-Wireless Debugging provides ADB access to the device.
-
-For safety:
-
-- 🔐 Use it on a trusted network
-- 🚫 Do not accept unknown pairing requests
-- 🔑 Never share your pairing code
-- 🌐 Do not publish your private IP/ADB port unnecessarily
-- 📵 Disable Wireless Debugging when you are finished if you do not need it
-
----
-
-# 🧹 Temporary files
-
-Split packages are extracted into a temporary directory under Termux.
-
-The installer removes this directory automatically when it exits.
-
-This keeps the temporary APK components from accumulating.
-
----
-
-# 📁 Project structure
+Expected form:
 
 ```text
-Termux-APK-Manager/
-├── apk
-├── README.md
-├── LICENSE
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── SECURITY.md
-└── .gitignore
+/data/data/com.termux/files/home/bin/apk
+```
+
+Check the version:
+
+```bash
+apk --version
 ```
 
 ---
 
-# ⚠️ Scope and limitations
+# 📦 Interactive installer
 
-This project intentionally keeps its job small: **find package → install through ADB → recover from the tested ART profile error → report the result.**
+Run:
 
-It does not attempt to circumvent Android account/device protections, patch applications, manage Morphe, modify APK contents, or manage app permissions automatically. Compatibility can vary between Android versions, manufacturers, package formats, and ADB implementations.
+```bash
+apk
+```
 
----
+Choose:
 
-# ❓ FAQ
+```text
+1) 📦 Install APK/package
+2) 🛠️ Manage installed apps
+3) ❌ Exit
+```
 
-### Does this require root?
-
-❌ No.
-
-### Does this require Shizuku?
-
-❌ No.
-
-### Does this modify Morphe?
-
-❌ No.
-
-### Does it support normal APKs?
-
-✅ Yes.
-
-### Does it support split APKs?
-
-✅ Yes.
-
-### Does it support Morphe-patched APKs?
-
-✅ Yes, including the tested ART profile mismatch fallback.
-
-### Do I need Wireless Debugging enabled permanently?
-
-❌ No. Enable it when you need ADB.
-
-### Does turning Developer Options off break Termux?
-
-❌ No. Termux remains installed and its files/scripts remain available.
-
-### Does the installer search my Downloads folder?
-
-❌ No. When run as `apk`, it searches only:
+The installer scans:
 
 ```text
 /storage/emulated/0/APK
 ```
 
-### Does it automatically uninstall or wipe the app?
+and presents supported package files for selection.
 
-❌ No.
+---
+
+# ⚡ Direct installation commands
+
+Install a package from the APK directory:
+
+```bash
+apk install example.apk
+```
+
+Or provide a full path:
+
+```bash
+apk install /path/to/example.apk
+```
+
+You can also pass a filename directly:
+
+```bash
+apk example.apk
+```
+
+Supported containers:
+
+```text
+.apk
+.apks
+.xapk
+.apkm
+```
+
+---
+
+# 🛠️ Package Manager
+
+Run:
+
+```bash
+apk
+```
+
+and select:
+
+
+```text
+2) 🛠️ Manage installed apps
+```
+
+Available operations:
+
+### 📋 List packages
+
+```bash
+apk list
+```
+
+### 🔍 Search packages
+
+```bash
+apk search gboard
+```
+
+### 📄 Package information
+
+```bash
+apk info com.example.app
+```
+
+### 🚫 Disable for user 0
+
+```bash
+apk disable com.example.app
+```
+
+Equivalent operation:
+
+```bash
+adb shell pm disable-user --user 0 com.example.app
+```
+
+### ✅ Enable
+
+```bash
+apk enable com.example.app
+```
+
+### 🗑️ Uninstall for user 0
+
+```bash
+apk uninstall com.example.app
+```
+
+The script intentionally uses:
+
+```bash
+adb shell pm uninstall --user 0 PACKAGE
+```
+
+For a preinstalled/system package, this normally removes it for user 0 rather than deleting the underlying system APK.
+
+### ♻️ Restore a preinstalled package
+
+```bash
+apk restore com.example.app
+```
+
+Equivalent operation:
+
+```bash
+adb shell cmd package install-existing --user 0 com.example.app
+```
+
+This is useful for restoring a preinstalled application that was previously removed for user 0.
+
+---
+
+# ⌨️ Example: replacing stock Gboard
+
+If a patched keyboard uses a different package name from stock Gboard, you can keep the patched keyboard active while removing the stock package for user 0.
+
+First inspect installed packages:
+
+```bash
+apk search gboard
+```
+
+Then, after confirming the package names and making sure another keyboard is available:
+
+```bash
+apk uninstall com.google.android.inputmethod.latin
+```
+
+Restore the preinstalled copy later with:
+
+```bash
+apk restore com.google.android.inputmethod.latin
+```
+
+Always verify the package name before performing package operations.
+
+---
+
+# 🧬 ART / dexopt profile mismatch
+
+### The problem
+
+A patched APK can sometimes fail with output similar to:
+
+```text
+Error occurred during dexopt when processing external profiles
+The profile does not match the APK
+The checksums in the profile do not match the checksums of the .dex files
+```
+
+### What the manager does
+
+The installer first performs the normal operation:
+
+```bash
+adb install -r APP.apk
+```
+
+If the output matches the known profile/dexopt failure patterns, it retries:
+
+```bash
+adb install -r --ignore-dexopt-profile APP.apk
+```
+
+For split packages it similarly retries `adb install-multiple` with the profile flag.
+
+### Why this is automatic
+
+The failure is environment-dependent. The same patched APK may install normally on one Android device and encounter the profile mismatch on another.
+
+Therefore the manager uses **normal install first, targeted fallback second** rather than always bypassing profile processing.
+
+---
+
+# 🛡️ Safety model
+
+This project is intentionally conservative.
+
+### It does
+
+- Use ADB package-management commands
+- Limit destructive package removal to `--user 0`
+- Ask for `YES` before interactive uninstall
+- Keep system APKs intact when using user-scoped uninstall
+- Detect common OEM/root-only failures
+- Leave OEM security restrictions alone
+
+### It does not
+
+- Root the device
+- Exploit Android security boundaries
+- Bypass OEM root-only restrictions
+- Modify `/system`
+- Patch APKs
+- Modify Morphe
+- Wipe app data automatically
+- Delete ART profiles automatically
+- Install a persistent privileged daemon
+- Require Shizuku
+
+---
+
+# 🔐 Wireless ADB and payment apps
+
+Wireless Debugging/ADB is intended to be used only when required.
+
+A practical workflow is:
+
+```text
+Enable Developer Options
+        ↓
+Enable Wireless Debugging
+        ↓
+Connect ADB
+        ↓
+Perform the required package operation
+        ↓
+Disconnect ADB
+        ↓
+Disable Wireless Debugging / Developer Options when finished
+```
+
+Whether a banking/payment application accepts a device with Developer Options or Wireless Debugging enabled is controlled by that application's own security checks. This project does not attempt to bypass those checks.
+
+---
+
+# 🔄 Termux backup
+
+The APK manager itself does not need a separate backup mechanism. Back up your Termux `home` and `usr` directories with your own Termux backup workflow.
+
+A generic backup script can be kept outside the public project if it contains personal configuration.
+
+**Do not commit:**
+
+- API tokens
+- passwords
+- pairing codes
+- private IP addresses
+- personal NextDNS profiles
+- private backup archives
+- company files
+- company credentials
+
+Personal utilities such as a `nextdns-backup` script are intentionally not included in this repository when they may contain user-specific configuration or credentials.
+
+---
+
+# 📁 Recommended Termux layout
+
+```text
+$HOME/
+├── bin/
+│   └── apk
+├── .apk_tmp/             # temporary extraction directory
+└── ...
+
+/storage/emulated/0/
+├── APK/
+│   ├── app.apk
+│   ├── app.apks
+│   └── app.xapk
+└── Termux Backups/
+```
+
+---
+
+# 🧪 Testing checklist
+
+Before releasing a new version, test at least:
+
+- [ ] Normal `.apk` install
+- [ ] APK filename containing spaces
+- [ ] `.apks` split package
+- [ ] `.xapk` package
+- [ ] `.apkm` package
+- [ ] Normal installation without profile error
+- [ ] Known ART/profile mismatch fallback
+- [ ] `apk list`
+- [ ] `apk search QUERY`
+- [ ] `apk info PACKAGE`
+- [ ] Disable a normal package
+- [ ] Re-enable it
+- [ ] Uninstall a user-scoped package
+- [ ] Restore a preinstalled package
+- [ ] OEM-protected package returns a friendly error
+- [ ] ADB-disconnected state returns a clear error
+
+---
+
+# 🧩 Why this is not Shizuku
+
+This project deliberately uses **Termux + ADB** instead of implementing or embedding Shizuku.
+
+Shizuku provides an IPC/Binder service that other Android applications can use to request privileged operations. This project instead keeps the workflow inside Termux and invokes ADB directly.
+
+That means:
+
+- Existing Shizuku-compatible applications do **not** automatically work with this project.
+- This project does not claim to be a Shizuku replacement.
+- It is useful when the desired operation can be performed through ADB/Package Manager commands.
+
+Termux itself provides a `RUN_COMMAND` interface that can allow external applications to request Termux commands when explicitly configured and granted permission. If a future companion app is added, its security model should follow the official Termux permission requirements rather than exposing arbitrary shell access. See the official Termux RUN_COMMAND documentation: https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent
 
 ---
 
 # 🤝 Contributing
 
-Contributions are welcome! ❤️
+Issues and pull requests are welcome.
 
-You can help by:
+Please keep contributions focused on:
 
-- 🐛 Reporting bugs
-- 💡 Suggesting improvements
-- 🔧 Submitting fixes
-- 🧪 Testing on different Android versions
-- 📱 Testing on different devices
-- 📝 Improving documentation
+- Android package management
+- Termux compatibility
+- ADB workflows
+- APK/APKS/XAPK/APKM handling
+- Reliability and error handling
+- Documentation
 
-Please read `CONTRIBUTING.md` before submitting changes.
+Do not submit:
+
+- private credentials
+- company code
+- proprietary APKs
+- personal backup archives
+- device-specific secrets
+- bypasses for security controls
+
+The `main` branch should remain protected. Pull requests are preferred for changes so they can be reviewed before merging. GitHub supports protected branches and PR templates for this workflow: https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 
-# ❤️ Why this project exists
+# 🔐 Security
 
-This started as a personal fallback because I wanted another way to install applications patched with Morphe.
+Please do not publish security-sensitive information in issues or pull requests.
 
-Instead of changing Morphe or depending on a single installation method, this project provides a simple ADB-based installation path through Termux.
+For security reports, see [`SECURITY.md`](SECURITY.md).
 
-If it helps someone else too, even better. ❤️📱
+GitHub recommends maintaining a `SECURITY.md` policy so users know how to report vulnerabilities privately: https://docs.github.com/en/code-security/getting-started/quickstart-for-securing-your-repository
 
 ---
 
-## 📜 License
+# 📜 License
 
-This project is licensed under the MIT License.
+MIT License. See [`LICENSE`](LICENSE).
 
-See [`LICENSE`](LICENSE) for details.
+---
+
+# 📌 Project status
+
+**Version:** `1.1.0`
+
+This is a personal/open-source utility built around Android's ADB and package-management interfaces. Android/OEM behavior can differ between devices and software versions, especially for privileged system packages.
+
+If an operation fails with an OEM/root-only `SecurityException`, the correct behavior is to report the restriction rather than attempt to bypass it.

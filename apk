@@ -1,11 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-# Termux APK Manager
-# Supports APK/APKS/XAPK/APKM packages.
-# Normal installation is attempted first.
-# ART/dexopt profile fallback is used only when the relevant
-# installation error is detected.
-
+VERSION="1.1.0"
 APK_DIR="/storage/emulated/0/APK"
 TMP="$HOME/.apk_tmp"
 
@@ -14,72 +9,94 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "📱 Termux APK Manager"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+header() {
+    clear 2>/dev/null
+    echo "📱 Termux APK Manager v$VERSION"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+}
 
-if ! adb devices 2>/dev/null | grep -qE 'device$'; then
-    echo "❌ ADB device not connected."
-    echo
-    echo "Connect Wireless ADB first:"
-    echo "adb connect IP:PORT"
-    exit 1
-fi
-
-mkdir -p "$APK_DIR"
-
-if [ -z "$1" ]; then
-
-    mapfile -d '' FILES < <(
-        find "$APK_DIR" -maxdepth 1 -type f \
-        \( -iname "*.apk" -o -iname "*.apks" -o -iname "*.xapk" -o -iname "*.apkm" \) \
-        -print0
-    )
-
-    if [ "${#FILES[@]}" -eq 0 ]; then
-        echo "📂 No APK packages found."
+check_adb() {
+    if ! adb devices 2>/dev/null | grep -qE 'device$'; then
+        echo "❌ ADB device not connected."
         echo
-        echo "Put APK/APKS/XAPK/APKM files here:"
-        echo "$APK_DIR"
-        exit 1
+        echo "Connect Wireless ADB first:"
+        echo "adb connect IP:PORT"
+        return 1
+    fi
+}
+
+pause() {
+    echo
+    read -rp "↩️ Press Enter to continue..."
+}
+
+valid_package() {
+    [[ "$1" =~ ^[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+$ ]]
+}
+
+handle_pm_output() {
+    local OUTPUT="$1"
+    local ACTION="$2"
+    local PKG="$3"
+
+    if echo "$OUTPUT" | grep -qiE \
+        'SecurityException:.*no root permission|Cannot (disable|enable|uninstall).*no root permission'; then
+
+        echo
+        echo "🔒 OEM Protected Package"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo
+        echo "📦 Package: $PKG"
+        echo "⚙️ Action: $ACTION"
+        echo
+        echo "This package is protected by the device manufacturer."
+        echo "ADB shell does not have permission to perform this action."
+        echo
+        echo "❌ Nothing was changed."
+        echo
+
+        return 0
     fi
 
-    echo
-    echo "📦 Available packages:"
-    echo
+    return 1
+}
 
-    for i in "${!FILES[@]}"; do
-        echo "  $((i+1))) $(basename "${FILES[$i]}")"
-    done
+run_pm_action() {
+    local ACTION="$1"
+    local PKG="$2"
+    local OUTPUT
+    local RESULT
 
-    echo
-    read -rp "👉 Select package: " CHOICE
+    case "$ACTION" in
+        disable)
+            OUTPUT=$(adb shell pm disable-user --user 0 "$PKG" 2>&1)
+            RESULT=$?
+            ;;
+        enable)
+            OUTPUT=$(adb shell pm enable "$PKG" 2>&1)
+            RESULT=$?
+            ;;
+        uninstall)
+            OUTPUT=$(adb shell pm uninstall --user 0 "$PKG" 2>&1)
+            RESULT=$?
+            ;;
+        restore)
+            OUTPUT=$(adb shell cmd package install-existing --user 0 "$PKG" 2>&1)
+            RESULT=$?
+            ;;
+        *)
+            echo "❌ Unknown package action."
+            return 1
+            ;;
+    esac
 
-    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || \
-       [ "$CHOICE" -lt 1 ] || \
-       [ "$CHOICE" -gt "${#FILES[@]}" ]; then
-        echo "❌ Invalid selection."
-        exit 1
+    if handle_pm_output "$OUTPUT" "$ACTION" "$PKG"; then
+        return 1
     fi
 
-    FILE="${FILES[$((CHOICE-1))]}"
-
-else
-
-    FILE="$1"
-
-    if [ ! -f "$FILE" ]; then
-        FILE="$APK_DIR/$1"
-    fi
-fi
-
-if [ ! -f "$FILE" ]; then
-    echo "❌ File not found: $1"
-    exit 1
-fi
-
-echo
-echo "📦 Selected: $(basename "$FILE")"
-echo
+    printf '%s\n' "$OUTPUT"
+    return "$RESULT"
+}
 
 install_apk() {
     local APK="$1"
@@ -164,70 +181,274 @@ install_splits() {
     return "$RESULT"
 }
 
-EXT="${FILE##*.}"
-EXT="$(echo "$EXT" | tr '[:upper:]' '[:lower:]')"
+install_file() {
+    local FILE="$1"
+    local EXT
+    local RESULT=1
 
-RESULT=1
+    EXT="${FILE##*.}"
+    EXT="$(echo "$EXT" | tr '[:upper:]' '[:lower:]')"
 
-if [ "$EXT" = "apk" ]; then
+    echo
+    echo "📦 Selected: $(basename "$FILE")"
+    echo
 
-    install_apk "$FILE"
-    RESULT=$?
+    case "$EXT" in
+        apk)
+            install_apk "$FILE"
+            RESULT=$?
+            ;;
+        apks|xapk|apkm)
+            rm -rf "$TMP"
+            mkdir -p "$TMP"
 
-elif [ "$EXT" = "apks" ] || \
-     [ "$EXT" = "xapk" ] || \
-     [ "$EXT" = "apkm" ]; then
+            echo "🧩 Extracting $EXT package..."
 
-    rm -rf "$TMP"
-    mkdir -p "$TMP"
+            if ! unzip -q "$FILE" -d "$TMP"; then
+                echo "❌ Could not extract package."
+                return 1
+            fi
 
-    echo "🧩 Extracting $EXT package..."
+            mapfile -d '' APKFILES < <(
+                find "$TMP" -type f -iname "*.apk" -print0
+            )
 
-    if ! unzip -q "$FILE" -d "$TMP"; then
-        echo "❌ Could not extract package."
-        exit 1
+            if [ "${#APKFILES[@]}" -eq 0 ]; then
+                echo "❌ No APK files found inside package."
+                return 1
+            fi
+
+            echo "📦 Found ${#APKFILES[@]} APK component(s)."
+
+            if [ "${#APKFILES[@]}" -eq 1 ]; then
+                install_apk "${APKFILES[0]}"
+                RESULT=$?
+            else
+                install_splits "${APKFILES[@]}"
+                RESULT=$?
+            fi
+            ;;
+        *)
+            echo "❌ Unsupported file type: .$EXT"
+            return 1
+            ;;
+    esac
+
+    echo
+
+    if [ "$RESULT" -eq 0 ]; then
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "✅ Installation successful!"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+    else
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "❌ Installation failed."
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━"
     fi
 
-    mapfile -d '' APKFILES < <(
-        find "$TMP" -type f -iname "*.apk" -print0
+    return "$RESULT"
+}
+
+install_menu() {
+    mkdir -p "$APK_DIR"
+
+    mapfile -d '' FILES < <(
+        find "$APK_DIR" -maxdepth 1 -type f \
+        \( -iname "*.apk" -o -iname "*.apks" -o -iname "*.xapk" -o -iname "*.apkm" \) \
+        -print0
     )
 
-    if [ "${#APKFILES[@]}" -eq 0 ]; then
-        echo "❌ No APK files found inside package."
-        exit 1
+    if [ "${#FILES[@]}" -eq 0 ]; then
+        echo "📂 No APK packages found."
+        echo
+        echo "Put APK/APKS/XAPK/APKM files here:"
+        echo "$APK_DIR"
+        return
     fi
 
-    echo "📦 Found ${#APKFILES[@]} APK component(s)."
+    echo
+    echo "📦 Available packages:"
+    echo
 
-    if [ "${#APKFILES[@]}" -eq 1 ]; then
+    for i in "${!FILES[@]}"; do
+        echo "  $((i+1))) $(basename "${FILES[$i]}")"
+    done
 
-        install_apk "${APKFILES[0]}"
-        RESULT=$?
+    echo
+    read -rp "👉 Select package: " CHOICE
 
-    else
-
-        install_splits "${APKFILES[@]}"
-        RESULT=$?
-
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]] || \
+       [ "$CHOICE" -lt 1 ] || \
+       [ "$CHOICE" -gt "${#FILES[@]}" ]; then
+        echo "❌ Invalid selection."
+        return
     fi
 
-else
+    install_file "${FILES[$((CHOICE-1))]}"
+}
 
-    echo "❌ Unsupported file type: .$EXT"
-    exit 1
+search_packages() {
+    local QUERY="$1"
+    adb shell pm list packages | sed 's/^package://' | grep -i -- "$QUERY"
+}
 
+package_info() {
+    local PKG="$1"
+    adb shell dumpsys package "$PKG" | sed -n '1,100p'
+}
+
+package_action() {
+    local ACTION="$1"
+    local PKG
+
+    read -rp "📦 Enter package name: " PKG
+
+    if ! valid_package "$PKG"; then
+        echo "❌ Invalid package name."
+        return 1
+    fi
+
+    case "$ACTION" in
+        disable)
+            echo
+            echo "🚫 Disabling $PKG for user 0..."
+            run_pm_action disable "$PKG"
+            ;;
+        enable)
+            echo
+            echo "✅ Enabling $PKG..."
+            run_pm_action enable "$PKG"
+            ;;
+        uninstall)
+            echo
+            echo "⚠️ This will uninstall the package for user 0."
+            echo "The system APK is NOT permanently deleted."
+            echo
+            read -rp "Type YES to continue: " CONFIRM
+            if [ "$CONFIRM" != "YES" ]; then
+                echo "❌ Cancelled."
+                return
+            fi
+            run_pm_action uninstall "$PKG"
+            ;;
+        restore)
+            echo
+            echo "♻️ Restoring $PKG for user 0..."
+            run_pm_action restore "$PKG"
+            ;;
+        info)
+            package_info "$PKG"
+            ;;
+    esac
+}
+
+manage_menu() {
+    while true; do
+        header
+        echo
+        echo "🛠️ Package Manager"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo
+        echo "  1) 📋 List installed packages"
+        echo "  2) 🔍 Search packages"
+        echo "  3) 📄 Package information"
+        echo "  4) 🚫 Disable app"
+        echo "  5) ✅ Enable app"
+        echo "  6) 🗑️ Uninstall for user 0"
+        echo "  7) ♻️ Restore system app"
+        echo "  8) ↩️ Back"
+        echo
+        read -rp "👉 Select: " M
+
+        case "$M" in
+            1)
+                adb shell pm list packages | sed 's/^package://' | sort
+                ;;
+            2)
+                echo
+                read -rp "🔎 Search: " QUERY
+                if [ -n "$QUERY" ]; then
+                    search_packages "$QUERY"
+                fi
+                ;;
+            3) package_action info ;;
+            4) package_action disable ;;
+            5) package_action enable ;;
+            6) package_action uninstall ;;
+            7) package_action restore ;;
+            8) return ;;
+            *) echo "❌ Invalid selection." ;;
+        esac
+
+        pause
+    done
+}
+
+if [ -n "$1" ]; then
+    case "$1" in
+        --version|-v|version)
+            echo "Termux APK Manager v$VERSION"
+            exit 0
+            ;;
+        install)
+            check_adb || exit 1
+            [ -n "$2" ] || { echo "Usage: apk install FILE"; exit 1; }
+            FILE="$2"
+            [ -f "$FILE" ] || FILE="$APK_DIR/$2"
+            [ -f "$FILE" ] || { echo "❌ File not found: $2"; exit 1; }
+            install_file "$FILE"
+            exit $?
+            ;;
+        list)
+            check_adb || exit 1
+            adb shell pm list packages | sed 's/^package://' | sort
+            exit
+            ;;
+        search)
+            check_adb || exit 1
+            [ -n "$2" ] || { echo "Usage: apk search QUERY"; exit 1; }
+            search_packages "$2"
+            exit
+            ;;
+        disable|enable|uninstall|restore|info)
+            check_adb || exit 1
+            [ -n "$2" ] || { echo "Usage: apk $1 PACKAGE"; exit 1; }
+            valid_package "$2" || { echo "❌ Invalid package name."; exit 1; }
+            case "$1" in
+                disable) run_pm_action disable "$2" ;;
+                enable) run_pm_action enable "$2" ;;
+                uninstall) run_pm_action uninstall "$2" ;;
+                restore) run_pm_action restore "$2" ;;
+                info) package_info "$2" ;;
+            esac
+            exit $?
+            ;;
+        *)
+            FILE="$1"
+            [ -f "$FILE" ] || FILE="$APK_DIR/$1"
+            check_adb || exit 1
+            [ -f "$FILE" ] || { echo "❌ File not found: $1"; exit 1; }
+            install_file "$FILE"
+            exit $?
+            ;;
+    esac
 fi
 
-echo
+check_adb || exit 1
 
-if [ "$RESULT" -eq 0 ]; then
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "✅ Installation successful!"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
-else
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "❌ Installation failed."
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━"
-fi
+while true; do
+    header
+    echo
+    echo "  1) 📦 Install APK/package"
+    echo "  2) 🛠️ Manage installed apps"
+    echo "  3) ❌ Exit"
+    echo
+    read -rp "👉 Select: " MAIN
 
-exit "$RESULT"
+    case "$MAIN" in
+        1) install_menu; pause ;;
+        2) manage_menu ;;
+        3) exit 0 ;;
+        *) echo "❌ Invalid selection."; pause ;;
+    esac
+done

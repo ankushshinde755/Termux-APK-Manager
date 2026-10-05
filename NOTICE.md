@@ -1,13 +1,7 @@
-# 📌 Project notes
+# Notice
 
-Termux APK Manager is an independent open-source utility.
+Termux APK Manager is an independent utility intended to be used with Termux and Android Debug Bridge (ADB).
 
-It is not affiliated with, endorsed by, or sponsored by:
+Termux, Android, ADB, Android Package Manager, and related names are trademarks or project names of their respective owners. This project is not an official Termux, Android, Google, Vivo, iQOO, or Shizuku project.
 
-- Termux
-- Android
-- Google
-- Morphe
-- Any application installed through the tool
-
-Morphe is mentioned only to describe one use case for the installation fallback.
+No third-party APKs, proprietary company files, private backups, credentials, or personal configuration files are distributed with this repository.
