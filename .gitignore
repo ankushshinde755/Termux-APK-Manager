@@ -1,0 +1,213 @@
+# Sensitive Information & Credentials
+# ====================================
+
+# API tokens, keys, and credentials
+*.token
+*.key
+*.secret
+*.apikey
+*.credentials
+.env
+.env.local
+.env.*.local
+
+# Private IP addresses and connection strings
+adb-connections.txt
+wireless-adb-config.txt
+device-ips.txt
+pairing-codes.txt
+
+# SSH/Private keys
+.ssh/
+*.pem
+*.ppk
+id_rsa*
+id_dsa*
+id_ecdsa*
+id_ed25519*
+
+# GPG keys
+.gnupg/
+*.gpg
+
+# Authentication files
+.netrc
+.gitconfig
+.git-credentials
+.github/secrets/
+
+# Private configuration files
+*.private.conf
+*.private.config
+user-config.sh
+personal-config.sh
+
+
+# Temporary & Cache Files
+# ========================
+
+# Script temporary directory (mentioned in apk script)
+.apk_tmp/
+.apk_tmp/*
+~$*
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Termux/Shell temporary files
+*.sh~
+.bash_history
+.bash_profile.local
+.bashrc.local
+.zsh_history
+
+# Text editor/IDE temporary files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+.DS_Store
+Thumbs.db
+
+# Vim/Neovim
+.vim/
+.nvim/
+tags
+
+
+# Backup Files
+# ==============
+
+# Local backup archives (as mentioned in README)
+*.tar.gz
+*.tar
+*.zip
+*backup*
+backup/
+backups/
+*.backup
+
+# APK backups and archives
+*.old
+*.prev
+
+
+# Personal/Private Data
+# ======================
+
+# Local utility scripts with credentials
+nextdns-backup*
+custom-backup*
+local-scripts/
+personal-scripts/
+private-scripts/
+
+# Device-specific files
+device-info.txt
+device-config.sh
+local-device-settings.sh
+
+# Personal Termux home/usr backups
+Termux\ Backups/
+termux-backup-*.tar.gz
+home-backup/
+usr-backup/
+
+# Private APK collections and repos
+private-apks/
+proprietary-apks/
+company-apks/
+
+# Personal notes
+*.notes
+*.private
+TODO-personal.txt
+private-notes.md
+
+
+# Development & Build
+# ====================
+
+# Process and lock files
+*.lock
+*.pid
+*.sock
+.lock
+
+# Shell session logs
+*.log
+*.err
+*.out
+
+# Testing/debugging artifacts
+test-output/
+debug/
+.test-cache/
+
+# OS-specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+
+# Environment-Specific Files
+# ============================
+
+# Local Termux modifications
+.local/
+.config/local/
+.termux-local/
+
+# Local PATH modifications
+local-path.sh
+local-bin/
+
+# Machine-specific scripts
+hostname-specific/
+device-specific/
+
+
+# CI/CD Secrets
+# ==============
+
+# GitHub Actions secrets (if applicable)
+.github/workflows/*.secret
+.github/workflows/secrets.txt
+
+# Build artifacts with embedded secrets
+dist/
+build/
+
+
+# Exclude from sync/backup
+# ==========================
+
+# Large binary files that shouldn't be in version control
+*.iso
+*.dmg
+*.exe
+*.deb
+*.apk
+*.apks
+*.xapk
+*.apkm
+
+
+# Exception: Track documentation examples
+# =========================================
+# The following are NOT ignored (important for project):
+# - README.md
+# - SECURITY.md
+# - CONTRIBUTING.md
+# - CHANGELOG.md
+# - VERSION (project version)
+# - apk (main script)
+# - scripts/ (public utility scripts)
+
+!.gitkeep
